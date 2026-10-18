@@ -115,6 +115,10 @@ Metrics take a few minutes to arrive.
 | `GET /ready` | 200 when the model is loaded. The readiness probe. |
 | `GET /metrics` | Prometheus metrics |
 
+Through the lab's ingress, which has no host name, `GET /healthz` shows an empty page. Managed NGINX answers that path itself,
+for cloud load balancer health checks, so the request never reaches the service. The probes call the pod directly, so they
+aren't affected. To test routing in a browser, use `GET /predict?text=...`, as Exercise 2 does.
+
 | Metric | Type | Labels |
 | --- | --- | --- |
 | `lab723_inference_requests_total` | Counter | `device`, `outcome` |
