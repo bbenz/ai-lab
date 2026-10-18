@@ -3,13 +3,16 @@
     Installs the LAB723 lab content into a running LAB723 lab: the lab files, the model, and the six images.
 
 .DESCRIPTION
-    Run it in the lab VM, in PowerShell as administrator, after the LAB723 begin state finishes:
+    The LAB723 begin state, from the life cycle actions (LCAs) or the manual bootstrap, installs this repository's content
+    itself, from the tag that its ContentVersion setting names. Use this script when the LCA can't import the images, for
+    example before the workflow has published a version's images. Run it in the lab VM, in PowerShell as administrator,
+    after the LAB723 begin state finishes:
 
         git clone https://github.com/bbenz/ai-lab C:\LabSetup\ai-lab
         Set-ExecutionPolicy Bypass -Scope Process -Force
         C:\LabSetup\ai-lab\setup\Install-LabContent.ps1
 
-    It does what the event's VM image and life cycle actions (LCAs) do, so that you can test the lab steps:
+    It does what the begin state does with the content, and builds the images that it can't import:
 
     1. Copies labfiles to C:\LabFiles\LAB723, where the lab steps expect the manifests.
     2. Downloads the model to C:\LabFiles\LAB723-model, and checks each file's SHA-256 hash.
@@ -18,7 +21,7 @@
     4. Removes the Ray cluster if it runs another image, and then runs the begin state again. That deploys lab-client,
        loadgen, the notebook, and the Ray cluster, uploads the model, renders the lab files, and runs the readiness gate.
 
-    With -FilesOnly, it does only steps 1 and 2. Use that when you build the lab VM image.
+    With -FilesOnly, it does only steps 1 and 2.
 
 .PARAMETER ImageSource
     Auto (default): import each image from SourceRegistry, and build the rest with az acr build.

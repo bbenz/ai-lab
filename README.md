@@ -22,7 +22,7 @@ Terraform configuration and life cycle actions (LCAs), which aren't in this repo
 | `notebooks` | `ray-batch-inference.ipynb`, and a saved copy of a completed run that's labeled as example output. |
 | `dashboard` | `lab723-ai-inference.json`, the **LAB723 - AI inference** Grafana dashboard. |
 | `model/model.json` | The model's source, pinned revision, license, files, and SHA-256 hashes. The model isn't stored in this repository. |
-| `setup/Install-LabContent.ps1` | Installs this content into a running lab, to test the lab steps. |
+| `setup/Install-LabContent.ps1` | Builds the images into a running lab's registry when they aren't published. The lab's LCA installs everything else. |
 | `local/compose.yaml` | Runs the workloads on Docker, without Azure. |
 | `tests` | Offline checks that keep the content consistent with the lab steps and the LCAs. |
 
@@ -43,41 +43,42 @@ Every image runs as a non-root user and includes `sh`, which the LCA's image pre
 
 ## Use it in the lab
 
-### Publish the images
+The LAB723 prepare LCA installs this content in each lab, from the tag that its `ContentVersion` setting names
+(`v1.0.0`), so the lab VM image doesn't need any of it. At each launch, the LCA:
+
+1. Clones the tag, or downloads the tag's archive if git can't.
+2. Imports the six images into the lab's registry from its `SourceRegistry` setting, `ghcr.io/bbenz`.
+3. Downloads the model files that `model/model.json` lists, checks their SHA-256 hashes, and uploads them to the lab's
+   storage account.
+4. Creates the dashboard from `dashboard/lab723-ai-inference.json`, as the resource `LAB723-AI-inference`, with the
+   `GrafanaDashboardResourceType` tag that lists it on the cluster's **Dashboards with Grafana** page.
+5. Deploys `lab-client`, `loadgen`, the notebook, and the Ray cluster with the lab's images.
+6. Copies `labfiles` to `C:\LabFiles\LAB723`, and replaces `<registry>` and the other placeholders in them.
+
+The manual begin state, which builds the same environment by hand to test the lab steps, does the same.
+
+### Publish a version
 
 The `Publish the lab images` workflow builds the six images and pushes them to GitHub Container Registry as
-`ghcr.io/<owner>/lab723/<name>:<tag>`. Push a tag to run it:
+`ghcr.io/<owner>/lab723/<name>:<version>`. Push a tag to run it:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
-The tag `v1.0.0` publishes the image tag `1.0.0`, and attaches `lab723-labfiles.zip`, the contents of `labfiles`, to the
-release. You can also run the workflow from the **Actions** tab with a tag of your choice.
+The tag `v1.0.1` publishes the image tag `1.0.1`, and attaches `lab723-labfiles.zip`, the contents of `labfiles`, to the
+release. You can also run the workflow from the **Actions** tab with a tag of your choice. Packages that a public
+repository's workflow publishes are public, so the LCA imports them without credentials. If a package isn't public,
+open it, select **Package settings**, and set **Change visibility** to **Public**.
 
-The first time, make each of the six packages public: on GitHub, open the package, select **Package settings**, and set
-**Change visibility** to **Public**. The LCA imports them without credentials.
+When the workflow finishes, set the prepare LCA's `ContentVersion` to the new tag. The image tag follows it.
 
-### Set up the event's lab profile
+### When the images aren't published
 
-1. In the prepare LCA's settings, set `SourceRegistry` to `ghcr.io/<owner>`. The LCA imports the images into each lab's
-   registry.
-2. When you build the lab VM image, put the lab files and the model in it. In the VM, in PowerShell as administrator:
-
-    ```powershell
-    git clone https://github.com/bbenz/ai-lab C:\LabSetup\ai-lab
-    Set-ExecutionPolicy Bypass -Scope Process -Force
-    C:\LabSetup\ai-lab\setup\Install-LabContent.ps1 -FilesOnly
-    ```
-
-    That copies `labfiles` to `C:\LabFiles\LAB723`, and downloads the model to `C:\LabFiles\LAB723-model`, which the LCA
-    uploads to each lab's storage account. Instead of the lab files in the image, you can set the LCA's `LabFilesZipUrl`
-    to the release's `lab723-labfiles.zip`.
-
-### Test the lab steps in a running lab
-
-In a lab where the LAB723 begin state finished, open PowerShell as administrator, and run:
+If the LCA can't import the images, for example before the workflow has published a version's images,
+`setup/Install-LabContent.ps1` builds the missing ones into a running lab's registry with ACR Tasks (`az acr build`),
+which takes 10 to 15 minutes. In a lab where the LAB723 begin state finished, open PowerShell as administrator, and run:
 
 ```powershell
 git clone https://github.com/bbenz/ai-lab C:\LabSetup\ai-lab
@@ -85,16 +86,14 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 C:\LabSetup\ai-lab\setup\Install-LabContent.ps1
 ```
 
-The script copies the lab files, downloads the model, and puts the six images in the lab's registry: it imports the
-ones that the workflow published, and builds the rest with ACR Tasks (`az acr build`), which takes 10 to 15 minutes.
-Then it runs the begin state again, which deploys `lab-client`, `loadgen`, the notebook, and the Ray cluster with the lab
-image, uploads the model, replaces `<registry>` in the lab files, and runs the readiness gate. Your Azure CLI must be
-signed in with the lab account, as it is after the manual begin state. To import only, add `-ImageSource Import`.
+It imports what it can, builds the rest, and then runs the begin state again, which deploys the workloads with the
+images. Your Azure CLI must be signed in with the lab account, as it is after the manual begin state.
 
-### Import the dashboard
+### The dashboard
 
-In the Azure portal, open the cluster. Under **Monitoring**, select **Dashboards with Grafana**, and then import
-`dashboard/lab723-ai-inference.json`. Choose the lab's Azure Monitor workspace as the Prometheus data source.
+The dashboard picks the first Prometheus data source and cluster that the viewer can see, which in a lab are the lab's
+Azure Monitor workspace and cluster. To add it to another cluster by hand, open the cluster in the Azure portal. Under
+**Monitoring**, select **Dashboards with Grafana**, and then import `dashboard/lab723-ai-inference.json`.
 
 The GPU utilization panel uses the DCGM exporter on AKS-managed GPU nodes. If it stays empty while the GPU pod runs,
 check that `dcgmexporter = true` is under `default-targets-scrape-enabled` in the cluster's
