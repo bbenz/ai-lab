@@ -47,15 +47,20 @@ The LAB723 prepare LCA installs this content in each lab, from the tag that its 
 (`v1.0.0`), so the lab VM image doesn't need any of it. At each launch, the LCA:
 
 1. Clones the tag, or downloads the tag's archive if git can't.
-2. Imports the six images into the lab's registry from its `SourceRegistry` setting, `ghcr.io/bbenz`.
-3. Downloads the model files that `model/model.json` lists, checks their SHA-256 hashes, and uploads them to the lab's
+2. As soon as the lab's registry and storage account exist, mirrors the folders in `labfiles` into
+   `C:\LabFiles\LAB723`, where the lab steps open, apply, and patch them, replaces `<registry>` and the other
+   placeholders in them, and checks that every file that the lab steps use is there.
+3. Imports the six images into the lab's registry from its `SourceRegistry` setting, `ghcr.io/bbenz`.
+4. Downloads the model files that `model/model.json` lists, checks their SHA-256 hashes, and uploads them to the lab's
    storage account.
-4. Creates the dashboard from `dashboard/lab723-ai-inference.json`, as the resource `LAB723-AI-inference`, with the
+5. Creates the dashboard from `dashboard/lab723-ai-inference.json`, as the resource `LAB723-AI-inference`, with the
    `GrafanaDashboardResourceType` tag that lists it on the cluster's **Dashboards with Grafana** page.
-5. Deploys `lab-client`, `loadgen`, the notebook, and the Ray cluster with the lab's images.
-6. Copies `labfiles` to `C:\LabFiles\LAB723`, and replaces `<registry>` and the other placeholders in them.
+6. Deploys `lab-client`, `loadgen`, the notebook, and the Ray cluster with the lab's images. Its readiness gate checks
+   that the notebook server lists both notebooks in its root folder, where Exercise 5 opens them.
 
-The manual begin state, which builds the same environment by hand to test the lab steps, does the same.
+The manual begin state, which builds the same environment by hand to test the lab steps, does the same. If you add,
+rename, or move a file that the lab steps use, also change the `$LabStepFiles` and `$LabStepFolders` lists in the
+prepare LCA, which its readiness gate checks.
 
 ### Publish a version
 
