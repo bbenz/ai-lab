@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inference
+  namespace: ai-lab
+spec:
+  ingressClassName: webapprouting.kubernetes.azure.com   # managed NGINX from the application routing add-on
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: inference
+                port:
+                  name: http

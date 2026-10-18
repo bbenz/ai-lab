@@ -1,0 +1,27 @@
+{
+  "name": "distilbert-base-uncased-finetuned-sst-2-english",
+  "description": "DistilBERT fine-tuned on SST-2 for English sentiment classification (POSITIVE or NEGATIVE), exported to ONNX.",
+  "source": "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english",
+  "revision": "714eb0fa89d2f80546fda750413ed43d93601a13",
+  "license": "Apache-2.0",
+  "files": [
+    {
+      "name": "model.onnx",
+      "url": "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english/resolve/714eb0fa89d2f80546fda750413ed43d93601a13/onnx/model.onnx",
+      "size": 267955711,
+      "sha256": "252cf7048af94a1599019fef35961b2bd3d6db13df0b0a4b032b92baeae31939"
+    },
+    {
+      "name": "tokenizer.json",
+      "url": "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english/resolve/714eb0fa89d2f80546fda750413ed43d93601a13/onnx/tokenizer.json",
+      "size": 711396,
+      "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+    },
+    {
+      "name": "config.json",
+      "url": "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english/resolve/714eb0fa89d2f80546fda750413ed43d93601a13/onnx/config.json",
+      "size": 735,
+      "sha256": "59025ec3116b09d2815c6b10b10dd6bb1caaab2a75d679cf6ebc36efd934f67d"
+    }
+  ]
+}

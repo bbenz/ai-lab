@@ -1,0 +1,58 @@
+# Runs the lab's workloads on Docker, for development and for trying the lab outside Azure. From the repository root:
+#
+#   python app/model/fetch_model.py model/model.json model-cache
+#   docker compose -f local/compose.yaml up --build --detach
+#   docker compose -f local/compose.yaml exec lab-client predict --target inference:8080
+#   docker compose -f local/compose.yaml exec lab-client bench --target inference:8080 --requests 200 --concurrency 4
+#
+# Then open http://localhost:8888/lab/tree/ray-batch-inference.ipynb for the Ray notebook. To add load, run
+# "docker compose -f local/compose.yaml --profile load up --detach". The inference service reads the model from the
+# model-cache folder instead of Azure Blob Storage, and doesn't send telemetry.
+name: lab723
+
+services:
+  inference:
+    build: { context: .., dockerfile: images/inference/Dockerfile }
+    image: lab723/inference:local
+    environment:
+      MODEL_LOCAL_DIR: /model
+      INFERENCE_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    volumes: ["../model-cache:/model:ro"]
+    cpus: 1
+    ports: ["8080:8080"]
+
+  lab-client:
+    build: { context: .., dockerfile: images/lab-client/Dockerfile }
+    image: lab723/lab-client:local
+
+  loadgen:
+    build: { context: .., dockerfile: images/loadgen/Dockerfile }
+    image: lab723/loadgen:local
+    profiles: [load]
+    environment:
+      TARGET_URL: http://inference:8080
+    cpus: 0.5
+
+  ray-head:
+    build: { context: .., dockerfile: images/ray/Dockerfile }
+    image: lab723/ray:local
+    command: ray start --head --num-cpus=0 --dashboard-host=0.0.0.0 --block
+    shm_size: 1g
+    ports: ["8265:8265"]
+
+  ray-worker:
+    image: lab723/ray:local
+    command: ray start --address=ray-head:6379 --num-cpus=1 --block
+    shm_size: 1g
+    cpus: 1
+    deploy: { replicas: 2 }
+    depends_on: [ray-head]
+
+  notebook:
+    build: { context: .., dockerfile: images/notebook/Dockerfile }
+    image: lab723/notebook:local
+    environment:
+      RAY_ADDRESS: ray://ray-head:10001
+    ports: ["8888:8888"]
+    depends_on: [ray-head]

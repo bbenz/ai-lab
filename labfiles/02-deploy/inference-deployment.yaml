@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+  namespace: ai-lab
+  labels:
+    app: inference
+spec:
+  selector:
+    matchLabels:
+      app: inference
+  template:
+    metadata:
+      labels:
+        app: inference
+        azure.workload.identity/use: "true"   # inject workload identity credentials
+    spec:
+      serviceAccountName: inference           # federated with a managed identity
+      topologySpreadConstraints:              # declared explicitly (see Task 3)
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: inference
+      containers:
+        - name: inference
+          image: <registry>/lab723/inference:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: lab-environment         # the model's storage account and container
+            - secretRef:
+                name: appinsights             # the Application Insights connection string
+                optional: true
+          env:
+            - name: OMP_NUM_THREADS           # runtime threads match the CPU limit
+              value: "1"
+            - name: INFERENCE_THREADS
+              value: "1"
+          resources:                          # request = limit: Guaranteed QoS
+            requests: { cpu: "1", memory: 2Gi }
+            limits:   { cpu: "1", memory: 2Gi }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            timeoutSeconds: 5
+            failureThreshold: 6

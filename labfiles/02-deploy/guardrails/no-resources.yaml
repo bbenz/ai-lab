@@ -1,0 +1,29 @@
+# A small deployment with probes and a versioned image tag, but no resource requests or limits and no spreading
+# rules. Deployment safeguards accept it, and then add the values that it's missing.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guardrail-demo
+  namespace: ai-lab
+  labels:
+    app: guardrail-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guardrail-demo
+  template:
+    metadata:
+      labels:
+        app: guardrail-demo
+    spec:
+      containers:
+        - name: demo
+          image: <registry>/lab723/lab-client:1.0.0
+          command: ["sleep", "infinity"]
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "true"]
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "true"]

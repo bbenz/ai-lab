@@ -1,0 +1,85 @@
+name: Publish the lab images
+
+# Builds the six LAB723 images and pushes them to GitHub Container Registry as
+# ghcr.io/<owner>/lab723/<image>:<tag>. The prepare life cycle action imports them from there when its
+# SourceRegistry setting is ghcr.io/<owner>. A tag such as v1.0.0 publishes tag 1.0.0, and attaches the lab files
+# to the release as lab723-labfiles.zip for the LabFilesZipUrl setting.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  images:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [inference, inference-gpu, lab-client, loadgen, ray, notebook]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space for the large images
+        if: matrix.image == 'inference-gpu' || matrix.image == 'ray' || matrix.image == 'notebook'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Image name
+        id: name
+        env:
+          OWNER: ${{ github.repository_owner }}
+          IMAGE: ${{ matrix.image }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          owner="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          tag="${INPUT_TAG:-${GITHUB_REF_NAME#v}}"
+          echo "image=ghcr.io/${owner}/lab723/${IMAGE}:${tag}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: images/${{ matrix.image }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ steps.name.outputs.image }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=LAB723 ${{ matrix.image }}
+
+  labfiles:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip the lab files
+        run: cd labfiles && zip -r ../lab723-labfiles.zip .
+
+      - name: Attach them to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "LAB723 lab files and images, tag ${GITHUB_REF_NAME#v}."
+          gh release upload "$GITHUB_REF_NAME" lab723-labfiles.zip --clobber

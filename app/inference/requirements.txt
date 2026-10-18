@@ -1,0 +1,9 @@
+azure-identity==1.26.0
+azure-monitor-opentelemetry==1.8.11
+azure-storage-blob==12.31.0
+fastapi==0.143.3
+numpy==2.5.4
+onnxruntime==1.31.0
+prometheus-client==0.26.0
+tokenizers==0.23.3
+uvicorn==0.54.0

@@ -1,0 +1,88 @@
+# Checkpoint: the reset before Exercise 5. The inference deployment on the balanced profile. Apply the folder with:
+# kubectl apply -f checkpoints/ex5/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+  namespace: ai-lab
+  labels:
+    app: inference
+spec:
+  selector:
+    matchLabels:
+      app: inference
+  template:
+    metadata:
+      labels:
+        app: inference
+        azure.workload.identity/use: "true"   # inject workload identity credentials
+    spec:
+      serviceAccountName: inference           # federated with a managed identity
+      topologySpreadConstraints:              # declared explicitly (see Task 3)
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: inference
+      containers:
+        - name: inference
+          image: <registry>/lab723/inference:1.0.0
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: lab-environment         # the model's storage account and container
+            - secretRef:
+                name: appinsights             # the Application Insights connection string
+                optional: true
+          env:
+            - name: OMP_NUM_THREADS           # runtime threads match the CPU limit
+              value: "1"
+            - name: INFERENCE_THREADS
+              value: "1"
+          resources:                          # request = limit: Guaranteed QoS
+            requests: { cpu: "1", memory: 2Gi }
+            limits:   { cpu: "1", memory: 2Gi }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            timeoutSeconds: 5
+            failureThreshold: 6
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inference
+  namespace: ai-lab
+  labels:
+    app: inference              # the ServiceMonitor scrapes Services with this label
+spec:
+  type: ClusterIP
+  selector:
+    app: inference
+  ports:
+    - name: http                # the ServiceMonitor scrapes /metrics on the port with this name
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: inference
+  namespace: ai-lab
+spec:
+  ingressClassName: webapprouting.kubernetes.azure.com   # managed NGINX from the application routing add-on
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: inference
+                port:
+                  name: http

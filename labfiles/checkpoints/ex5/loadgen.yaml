@@ -1,0 +1,39 @@
+# Checkpoint: the load generator scaled to zero. It matches the deployment that the prepare life cycle action creates.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: ai-lab
+  labels:
+    app: loadgen
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: loadgen
+  template:
+    metadata:
+      labels:
+        app: loadgen
+    spec:
+      containers:
+        - name: loadgen
+          image: <registry>/lab723/loadgen:1.0.0
+          env:
+            - name: TARGET_URL
+              value: http://inference.ai-lab.svc.cluster.local
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            periodSeconds: 30
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            periodSeconds: 60

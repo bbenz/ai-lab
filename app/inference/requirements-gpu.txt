@@ -1,0 +1,11 @@
+# The GPU image uses the newest ONNX Runtime that's built for CUDA 12, which runs with any NVIDIA driver from
+# the 525 series on. Version 1.27 and later are built for CUDA 13, which needs the 580 driver series.
+azure-identity==1.26.0
+azure-monitor-opentelemetry==1.8.11
+azure-storage-blob==12.31.0
+fastapi==0.143.3
+numpy==2.5.4
+onnxruntime-gpu[cuda,cudnn]==1.26.0
+prometheus-client==0.26.0
+tokenizers==0.23.3
+uvicorn==0.54.0
