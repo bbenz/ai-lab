@@ -53,8 +53,8 @@ The LAB723 prepare LCA installs this content in each lab, from the tag that its 
 3. Imports the six images into the lab's registry from its `SourceRegistry` setting, `ghcr.io/bbenz`.
 4. Downloads the model files that `model/model.json` lists, checks their SHA-256 hashes, and uploads them to the lab's
    storage account.
-5. Creates the dashboard from `dashboard/lab723-ai-inference.json`, as the resource `LAB723-AI-inference`, with the
-   `GrafanaDashboardResourceType` tag that lists it on the cluster's **Dashboards with Grafana** page.
+5. Creates the dashboard from `dashboard/lab723-ai-inference.json`, as the resource `LAB723-AI-inference`, which the
+   lab steps open from the Azure portal's search box.
 6. Deploys `lab-client`, `loadgen`, the notebook, and the Ray cluster with the lab's images. Its readiness gate checks
    that the notebook server lists both notebooks in its root folder, where Exercise 5 opens them.
 
@@ -97,8 +97,10 @@ images. Your Azure CLI must be signed in with the lab account, as it is after th
 ### The dashboard
 
 The dashboard picks the first Prometheus data source and cluster that the viewer can see, which in a lab are the lab's
-Azure Monitor workspace and cluster. To add it to another cluster by hand, open the cluster in the Azure portal. Under
-**Monitoring**, select **Dashboards with Grafana**, and then import `dashboard/lab723-ai-inference.json`.
+Azure Monitor workspace and cluster. In a lab, enter `LAB723-AI-inference` in the Azure portal's search box to open it.
+The portal shows that resource name, not the title in the JSON file. To add it to another cluster by hand, open the
+cluster in the Azure portal. Under **Monitoring**, select **Dashboards with Grafana**, and then import
+`dashboard/lab723-ai-inference.json`.
 
 The GPU utilization panel uses the DCGM exporter on AKS-managed GPU nodes. If it stays empty while the GPU pod runs,
 check that `dcgmexporter = true` is under `default-targets-scrape-enabled` in the cluster's
